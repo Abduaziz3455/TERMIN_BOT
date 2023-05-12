@@ -1,3 +1,4 @@
+import re
 import sqlite3
 import logging
 
@@ -5,10 +6,11 @@ from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.builtin import CommandStart
 
+from pytube import Search, YouTube
 from data.config import CHANNELS, ADMINS
 from handlers.users.find_word import checkWord
 from handlers.users.read_word import word_atama
-from keyboards.inline.right_word import same_words
+from keyboards.inline.right_word import same_words, videos
 from keyboards.inline.subscription import check_button
 from loader import dp, db, bot
 from utils.misc import subscription
@@ -32,7 +34,6 @@ async def bot_start(message: types.Message, state: FSMContext):
         invite_link = await chat.export_invite_link()
         # logging.info(invite_link)
         channels_format += f"👉 <a href='{invite_link}'>{chat.title}</a>\n"
-
     await message.answer(f"Botdan foydalanish uchun quyidagi kanallarga obuna bo'ling: \n"
                          f"{channels_format}",
                          reply_markup=check_button,
@@ -88,7 +89,7 @@ async def checkImlo(message: types.Message):
     result = checkWord(word)
     if result['available']:
         response = f"✅{word} 👉 {word_atama()[word]}"
-        await message.answer(response)
+        await message.answer(response, reply_markup=videos(word))
     else:
         response = f"❌{word} --> Bunday atama lug'atimizda mavjud emas!"
         if len(result['matches']) > 0:
@@ -102,7 +103,20 @@ async def checkImlo(message: types.Message):
 @dp.callback_query_handler(lambda x: x.data, state=Group.subs)
 async def ret_word(call: types.CallbackQuery):
     await types.ChatActions.typing()
-    response = f"✅{call.data} 👉 {word_atama()[call.data]}"
-    # await call.message.delete()
-    await call.message.answer(response)
-    await call.answer(cache_time=2)
+    if call.data.split("\\\\") != 2:
+        text = call.data
+        response = f"✅{text} 👉 {word_atama()[text]}"
+        # await call.message.delete()
+        await call.message.answer(response, reply_markup=videos(text))
+        await call.answer(cache_time=2)
+    else:
+        text = call.data.split("\\\\")[1]
+        s = Search(query=text)
+        for video in s.results[:5]:
+            string_repr = str(video)
+
+            match = re.search(r'videoId=([^>\s]+)', string_repr)
+            if match:
+                video_id = match.group(1)
+                await call.message.answer(text=f'https://www.youtube.com/watch?v={video_id}')
+        await call.answer()
