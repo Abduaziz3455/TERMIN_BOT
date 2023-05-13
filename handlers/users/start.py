@@ -102,17 +102,11 @@ async def checkImlo(message: types.Message):
 
 @dp.callback_query_handler(lambda x: x.data, state=Group.subs)
 async def ret_word(call: types.CallbackQuery):
-    await types.ChatActions.typing()
-    if call.data.split("\\\\") != 2:
-        text = call.data
-        response = f"✅{text} 👉 {word_atama()[text]}"
-        # await call.message.delete()
-        await call.message.answer(response, reply_markup=videos(text))
-        await call.answer(cache_time=2)
-    else:
+    if len(call.data.split("\\\\")) == 2:
+        await types.ChatActions.upload_video()
         text = call.data.split("\\\\")[1]
-        s = Search(query=text)
-        for video in s.results[:5]:
+        s = Search(query=f"{text} elektronika")
+        for video in s.results[:3]:
             string_repr = str(video)
 
             match = re.search(r'videoId=([^>\s]+)', string_repr)
@@ -120,3 +114,10 @@ async def ret_word(call: types.CallbackQuery):
                 video_id = match.group(1)
                 await call.message.answer(text=f'https://www.youtube.com/watch?v={video_id}')
         await call.answer()
+    else:
+        await types.ChatActions.typing()
+        text = call.data
+        response = f"✅{text} 👉 {word_atama()[text]}"
+        # await call.message.delete()
+        await call.message.answer(response, reply_markup=videos(text))
+        await call.answer(cache_time=2)
